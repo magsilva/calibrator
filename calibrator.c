@@ -92,77 +92,74 @@ typedef struct {
 
 long use_result_dummy;	/* !static for optimizers. */
 
-/* Returns the number of microseconds from the latest time it was executed
-till now */
-long now(void)
-{
+/*
+ * Returns the number of microseconds from the latest time it was executed till now.
+ */
+long now( void ) {
 	struct timeval tp;
 	
-	gettimeofday(&tp, 0);
-	/* the code right below is executed just one time, it's the initialization
-	of the oldtp */
+	gettimeofday( &tp, 0 );
+	/* the code right below is executed just one time, it's the initialization of the oldtp */
 	if (oldtp.tv_sec == 0 && oldtp.tv_usec == 0) {
 		oldtp = tp;
 	}
 
 	/* Question: is useful watch out the seconds spent? */
-	return (long)( (long)(tp.tv_sec  - oldtp.tv_sec ) * (long)1000000 +
-			(long)(tp.tv_usec - oldtp.tv_usec)	);
+	return (long)( (long)( tp.tv_sec  - oldtp.tv_sec ) * (long)1000000 +	(long)( tp.tv_usec - oldtp.tv_usec ) );
 }
 
-/* Handles the errors found at runtime (just printout a string with the error
-message) */
-void ErrXit(char *format, ...) {
+/*
+ * Handles the errors found at runtime (just printout a string with the error message).
+ */
+void ErrXit( char *format, ... ) {
 	va_list	ap;
-	char	s[1024];
+	char	s[ 1024 ];
 
-	va_start(ap,format);
-	vsprintf(s, format, ap);
-  	va_end(ap);
-	fprintf(stderr, "\n! %s !\n", s);
-	fflush(stderr);
-	exit(1);
+	va_start( ap, format );
+	vsprintf( s, format, ap );
+ 	va_end(ap);
+	fprintf( stderr, "\n! %s !\n", s );
+	fflush( stderr );
+	exit( 1 );
 }
 
-/* Rounds a float number number up */
-/* Anything below x,5 goes x, "caso contrário" goes x+1 */
-long round(float x) {
-	return (long)(x + 0.5);
+/* 
+ * Rounds a float number number up. Anything below x.5 becomes x, otherwise x + 1.
+ */
+long round( float x ) {
+	return (long)( x + 0.5 );
 }
 
-/* Coverts the memory command line parameter to bytes */
-long bytes(char *s)
-{
-	long	n = atoi(s);
-	char 	lastchar = s[strlen(s)-1];
+/*
+ * Coverts the memory command line parameter to bytes.
+ */
+long bytes( char *s ) {
+	long	n = atoi( s );
+	char 	lastchar = s[ strlen( s ) - 1 ];
 	
-	if ((lastchar == 'k') || (lastchar == 'K'))
+	if ( ( lastchar == 'k' ) || ( lastchar == 'K' ) )
 		n *= 1024;
-	if ((lastchar == 'm') || (lastchar == 'M'))
-		n *= (1024 * 1024);
-	if ((lastchar == 'g') || (lastchar == 'G'))
-		n *= (1024 * 1024 * 1024);
-	return (n);
+	if ( ( lastchar == 'm' ) || ( lastchar == 'M' ) )
+		n *= ( 1024 * 1024 );
+	if ( ( lastchar == 'g' ) || ( lastchar == 'G' ) )
+		n *= ( 1024 * 1024 * 1024 );
+	return ( n );
 }
 
-/* Just reads a memory position */
-/* As you can see, theuse_result_dummy isn't declared inside the function,
-being global instead. This is because this function will the called several
-times and the overhead to alocate a long variable would impact in the results
-of the program */
-
-void use_pointer(void *result) {
+/*
+ * Just reads a memory position. As you can see, the use_result_dummy() isn't declared
+ * inside the function, being global instead. This is because this function will the called
+ * several times and the overhead to alocate a long variable would impact in the results
+ * of the program.
+ */
+void use_pointer( void *result ) {
 	use_result_dummy += (long)result;
 }
 
-/* Reads the contents into the array */
-/* This is the most called part of the program */
-long loads(char *array,
-		long range,
-		long stride,
-		long MHz,
-		int delay)
-{
+/*
+ *  Reads the contents into the array. This is the most called part of the program.
+ */
+long loads( char *array, long range, long stride, long MHz, int delay ) {
 	register char **p = 0;	// p contains a memory address
 	long	best = 2000000000,	// this is an upper limit for best
 		i,
