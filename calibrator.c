@@ -48,6 +48,10 @@ Commented by Marco Aurélio Graciotto Silva <magsilva@gmail.com>
 #include <string.h>
 #include <stdarg.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 
 #define VERSION "0.9e"
 
@@ -69,6 +73,14 @@ long MINTIME = 10000;
 
 #define NanosecondsPerIteration(t)	(((double)(t)) / (((double)NUMLOADS) / 1000.0))
 #define ClocksPerIteration(t)		(((double)((t) * MHz)) / ((double)NUMLOADS))
+
+#define MEMINFO_FILE "/proc/meminfo"
+
+typedef struct mem_table_struct {
+	const char *name;     /* memory type name */
+	unsigned long *slot; /* slot in return struct */
+} mem_table_struct;
+
 
 struct timeval oldtp = { 0 };
 
@@ -106,6 +118,149 @@ long now( void ) {
 
 	/* Question: is useful watch out the seconds spent? */
 	return (long)( (long)( tp.tv_sec  - oldtp.tv_sec ) * (long)1000000 +	(long)( tp.tv_usec - oldtp.tv_usec ) );
+}
+
+int compare_mem_table_structs(const void *a, const void *b) {
+	return strcmp(((const mem_table_struct*)a)->name,((const mem_table_struct*)b)->name);
+}
+
+/**
+ * Get the CPU frequency.
+ */
+long guess_cpu_frequency( void ) {
+	return 800;
+}
+
+/**
+ * Get the ammount of free memory.
+ */
+long guess_free_memory( void ) {
+/* obsolete */
+	unsigned long kb_main_shared;
+	/* old but still kicking -- the important stuff */
+	unsigned long kb_main_buffers;
+	unsigned long kb_main_cached;
+	unsigned long kb_main_free;
+	unsigned long kb_main_total;
+	unsigned long kb_swap_free;
+	unsigned long kb_swap_total;
+	/* recently introduced */
+	unsigned long kb_high_free;
+	unsigned long kb_high_total;
+	unsigned long kb_low_free;
+	unsigned long kb_low_total;
+	/* 2.4.xx era */
+	unsigned long kb_active;
+	unsigned long kb_inact_laundry;
+	unsigned long kb_inact_dirty;
+	unsigned long kb_inact_clean;
+	unsigned long kb_inact_target;
+	unsigned long kb_swap_cached;  /* late 2.4 and 2.6+ only */
+	/* derived values */
+	unsigned long kb_swap_used;
+	unsigned long kb_main_used;
+	/* 2.5.41+ */
+	unsigned long kb_writeback;
+	unsigned long kb_slab;
+	unsigned long nr_reversemaps;
+	unsigned long kb_committed_as;
+	unsigned long kb_dirty;
+	unsigned long kb_inactive;
+	unsigned long kb_mapped;
+	unsigned long kb_pagetables;
+	// seen on a 2.6.x kernel:
+	unsigned long kb_vmalloc_chunk;
+	unsigned long kb_vmalloc_total;
+	unsigned long kb_vmalloc_used;
+
+	int meminfo_fd = -1;
+	char buf[1024];
+	int buf_size;
+
+
+	char namebuf[16]; /* big enough to hold any row name */
+	mem_table_struct findme = { namebuf, NULL};
+	mem_table_struct *found;
+	char *head;
+	char *tail;
+	const mem_table_struct mem_table[] = {
+		{"Active",       &kb_active},       // important
+		{"Buffers",      &kb_main_buffers}, // important
+		{"Cached",       &kb_main_cached},  // important
+		{"Committed_AS", &kb_committed_as},
+		{"Dirty",        &kb_dirty},        // kB version of vmstat nr_dirty
+		{"HighFree",     &kb_high_free},
+		{"HighTotal",    &kb_high_total},
+		{"Inact_clean",  &kb_inact_clean},
+		{"Inact_dirty",  &kb_inact_dirty},
+		{"Inact_laundry",&kb_inact_laundry},
+		{"Inact_target", &kb_inact_target},
+		{"Inactive",     &kb_inactive},     // important
+		{"LowFree",      &kb_low_free},
+		{"LowTotal",     &kb_low_total},
+		{"Mapped",       &kb_mapped},       // kB version of vmstat nr_mapped
+		{"MemFree",      &kb_main_free},    // important
+		{"MemShared",    &kb_main_shared},  // important, but now gone!
+	        {"MemTotal",     &kb_main_total},   // important
+		{"PageTables",   &kb_pagetables},   // kB version of vmstat nr_page_table_pages
+		{"ReverseMaps",  &nr_reversemaps},  // same as vmstat nr_page_table_pages
+		{"Slab",         &kb_slab},         // kB version of vmstat nr_slab
+	        {"SwapCached",   &kb_swap_cached},
+		{"SwapFree",     &kb_swap_free},    // important
+		{"SwapTotal",    &kb_swap_total},   // important
+		{"VmallocChunk", &kb_vmalloc_chunk},
+		{"VmallocTotal", &kb_vmalloc_total},
+		{"VmallocUsed",  &kb_vmalloc_used},
+		{"Writeback",    &kb_writeback},    // kB version of vmstat nr_writeback
+	};
+	const int mem_table_count = sizeof(mem_table)/sizeof(mem_table_struct);
+
+	/* This macro opens filename only if necessary and seeks to 0 so
+	* that successive calls to the functions are more efficient.
+	* It also reads the current contents of the file into the global buf.
+	*/
+	meminfo_fd = open(MEMINFO_FILE, O_RDONLY);
+	if (meminfo_fd == -1) {
+		return -1;
+	}
+	lseek(meminfo_fd, 0L, SEEK_SET);
+	buf_size = read(meminfo_fd, buf, sizeof buf - 1);
+	if (buf_size < 0) {
+		return -1;
+	}
+	buf[buf_size] = '\0';
+
+	kb_inactive = ~0UL;
+	head = buf;
+	for(;;){
+		tail = strchr(head, ':');
+		if(!tail) break;
+		*tail = '\0';
+		if(strlen(head) >= sizeof(namebuf)){
+			head = tail+1;
+			goto nextline;
+		}
+		strcpy(namebuf,head);
+		found = bsearch(&findme, mem_table, mem_table_count, sizeof(mem_table_struct), compare_mem_table_structs);
+		head = tail+1;
+		if(!found) goto nextline;
+		*(found->slot) = strtoul(head,&tail,10);
+nextline:
+		tail = strchr(head, '\n');
+		if(!tail) break;
+		head = tail+1;
+	}
+	if(!kb_low_total){  /* low==main except with large-memory support */
+		kb_low_total = kb_main_total;
+		kb_low_free  = kb_main_free;
+	}
+	if(kb_inactive==~0UL){
+		kb_inactive = kb_inact_dirty + kb_inact_clean + kb_inact_laundry;
+	}
+	kb_swap_used = kb_swap_total - kb_swap_free;
+	kb_main_used = kb_main_total - kb_main_free;
+	
+	return kb_main_free * 1024;
 }
 
 /*
@@ -852,15 +1007,21 @@ int main(int ac, char **av) {
 	TLBinfo 	*TLB;
 
 	fprintf(stdout,"\nCalibrator v%s\n(by Stefan.Manegold@cwi.nl, http://www.cwi.nl/~manegold/)\n", VERSION);
-	
+		
 	/* Setting up the variables based on command line arguments */
-	if (ac < 3) {
+	if (ac == 1) {
+		MHz = guess_cpu_frequency();
+		maxrange = guess_free_memory();
+	} else if (ac < 3) {
 		ErrXit("usage: '%s <MHz> <size>[k|M|G]", av[0]);
+	} else {
+		MHz = atoi(av[1]);
+		// Why using 25% more memory?
+		maxrange = bytes(av[2]) * 1.25;
 	}
-	
-	MHz = atoi(av[1]);
-	// Why using 25% more memory?
-	maxrange = bytes(av[2]) * 1.25;
+	fprintf(stdout,"\nMemory to be used: %d", maxrange);
+	fprintf(stdout,"\nCPU frequency: %d", MHz);
+	fprintf(stdout,"\n");
 
 	/* Allocating memory for our test array */
 	// Why are we allocating this pgsz extra memory?

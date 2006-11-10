@@ -1,0 +1,2 @@
+- If no command line argument is given, guess a good ammount of memory
+to use and the CPU frequency.
