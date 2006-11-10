@@ -81,6 +81,7 @@ typedef struct mem_table_struct {
 	unsigned long *slot; /* slot in return struct */
 } mem_table_struct;
 
+#define MAX_LINE_LEN 255
 
 struct timeval oldtp = { 0 };
 
@@ -124,18 +125,42 @@ int compare_mem_table_structs(const void *a, const void *b) {
 	return strcmp(((const mem_table_struct*)a)->name,((const mem_table_struct*)b)->name);
 }
 
+
+unsigned long proc_get_freq_kernel(unsigned int cpu) {
+	FILE *fp;
+	char value[MAX_LINE_LEN];
+	char file[MAX_LINE_LEN];
+	unsigned long value2;
+
+	snprintf(file, MAX_LINE_LEN, "/sys/devices/system/cpu/cpu%u/cpufreq/scaling_cur_freq", cpu);
+	fp = fopen(file,"r");
+	if (!fp)
+		return 0;
+	fgets(value, MAX_LINE_LEN, fp);
+	fclose(fp);
+	if (strlen(value) > (MAX_LINE_LEN - 10)) {
+		return 0;
+	}
+	if (sscanf(value, "%lu", &value2) != 1)
+		return 0;
+
+	return value2;
+}
+
 /**
  * Get the CPU frequency.
  */
 long guess_cpu_frequency( void ) {
-	return 800;
+	long ret;
+	ret = proc_get_freq_kernel(0);
+	return ret / 1000;
 }
-
+	
 /**
  * Get the ammount of free memory.
  */
 long guess_free_memory( void ) {
-/* obsolete */
+	/* obsolete */
 	unsigned long kb_main_shared;
 	/* old but still kicking -- the important stuff */
 	unsigned long kb_main_buffers;
