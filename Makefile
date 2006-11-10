@@ -1,5 +1,5 @@
 CC = gcc
-OPTS = -O2
+OPTS = -O2 -std=c99
 LIBS = -lm
 
 build:

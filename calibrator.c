@@ -37,8 +37,8 @@
  */
 
 /*
-Commented by Marco Aurélio Graciotto Silva <magsilva@icmc.usp.br>
-(some minor improvments were also done)
+Commented by Marco Aurélio Graciotto Silva <magsilva@gmail.com>
+(some minor improvements were also done)
 */
 
 #include <unistd.h>
@@ -121,13 +121,6 @@ void ErrXit( char *format, ... ) {
 	fprintf( stderr, "\n! %s !\n", s );
 	fflush( stderr );
 	exit( 1 );
-}
-
-/* 
- * Rounds a float number number up. Anything below x.5 becomes x, otherwise x + 1.
- */
-long round( float x ) {
-	return (long)( x + 0.5 );
 }
 
 /*
