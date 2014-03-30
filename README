@@ -11,7 +11,7 @@ to develop a program to discover the cache size of a CPU. I had a reasonable
 knowledge about x86 compatible CPUs and their caches, and I figured out it
 could, somehow, be done by playing with the cache lines and measuring the
 times. But that would be quite time consuming. The first prototipes were
-definetily innacurate. 
+definitely innacurate. 
 
 That's when I found Stefan's work. At first glance, it was almost a miracle.
 The data was (almost) always correct, the graphics (after gnuplot processed)
@@ -19,14 +19,14 @@ were a valuable resource.
 
 However, the precision was not that great. It always guesses wrong the cache
 size, usually one order less. Looking the graphics, it was easy to spot the
-real cache size: the program was just lack of precision.
+real cache size: the problem was just lack of precision.
 
 So I started modifying the software. At that time, using version 0.9c, I
 removed all the I/O instructions, the same one's used to build the graphs.
 After one day, understanding the software and hacking it, the results
 were amazing: it got the cache and TLB sizes correctly, always!
 
-The professor was amazed with thee results also. Actually, that was the
+The professor was amazed with the results also. Actually, that was the
 first time I got the max score in a laboratory practice. Calibrator teached
 me too much to mention, it's a worthless tool for computer architecture
 students.
