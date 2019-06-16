@@ -150,7 +150,7 @@ unsigned long proc_get_freq_kernel(unsigned int cpu) {
 /**
  * Get the CPU frequency.
  */
-long guess_cpu_frequency( void ) {
+unsigned long guess_cpu_frequency( void ) {
 	long ret;
 	ret = proc_get_freq_kernel(0);
 	return ret / 1000;
@@ -266,7 +266,7 @@ long guess_free_memory( void ) {
 			goto nextline;
 		}
 		strcpy(namebuf,head);
-		found = bsearch(&findme, mem_table, mem_table_count, sizeof(mem_table_struct), compare_mem_table_structs);
+		found = (mem_table_struct  *) bsearch(&findme, mem_table, mem_table_count, sizeof(mem_table_struct), compare_mem_table_structs);
 		head = tail+1;
 		if(!found) goto nextline;
 		*(found->slot) = strtoul(head,&tail,10);
@@ -489,7 +489,7 @@ long** runCache(char *array, long maxrange, long minstride, long MHz, long *maxs
 			if (!time)
 				ErrXit("runCache: 'loads(%x(array), %ld(range), %ld(stride), %ld(MHz), 0(fp), 0(delay))` returned elapsed time of 0us",
 					array, range, stride, MHz);
-		} while (((fabs(time - last) / (double)time) > EPSILON1) && (stride <= (maxrange / 2)));
+		} while (((labs(time - last) / (double)time) > EPSILON1) && (stride <= (maxrange / 2)));
 		*maxstride = stride;
 		delay = 0;
 	} else {
@@ -579,7 +579,7 @@ long** runTLB(char *array, long maxrange, long minstride, long shift, long minca
 			if (!time)
 				ErrXit("runTLB: 'loads(%x(array), %ld(range), %ld(stride), %ld(MHz), 0(fp), 0(delay))` returned elapsed time of 0us",
 					array, range, stride, MHz);
-		} while ((((fabs(time - last) / (double)time) > EPSILON1) || (stride < (pgsz / 1))) && (range <= (maxrange / 2)));	
+		} while ((((labs(time - last) / (double)time) > EPSILON1) || (stride < (pgsz / 1))) && (range <= (maxrange / 2)));	
 		*maxstride = s;
 		delay = 0;
 	} else {
@@ -694,13 +694,13 @@ cacheInfo* analyzeCache(long **result1, long **result2, long MHz)
 			time1 = result1[y][x];
 			time2 = result2[y][x];
 			if (draft[1].linesize[level] && last[a] && (range == draft[1].size[level])) {
-				if ((fabs(time1 - last[a]) / (double)time1) < EPSILON1) {
+				if ((labs(time1 - last[a]) / (double)time1) < EPSILON1) {
 					draft[0].linesize[level] = stride;
 					draft[1].linesize[level] = stride;
 				}
 			}
 			if (draft[2].linesize[level] && last[0] && lastrange && (lastrange == draft[2].size[level])) {
-				if ((fabs(time1 - last[0]) / (double)time1) < EPSILON1) {
+				if ((labs(time1 - last[0]) / (double)time1) < EPSILON1) {
 					draft[2].linesize[level] = stride;
 					draft[3].linesize[level] = stride;
 				} else {
@@ -790,9 +790,9 @@ void printCPU( cacheInfo *cache, long MHz, long delay ) {
 	FILE	*fp = stdout;
 		
 	fprintf(fp, "CPU loop + L1 access:    ");
-	fprintf(fp, " %6.2f ns = %3ld cy\n", NanosecondsPerIteration( cache->latency1[0] ), round(ClocksPerIteration(cache->latency1[0])));
+	fprintf(fp, " %6.2f ns = %3f cy\n", NanosecondsPerIteration( cache->latency1[0] ), round(ClocksPerIteration(cache->latency1[0])));
 	fprintf(fp, "             ( delay:    ");
-	fprintf(fp, " %6.2f ns = %3ld cy )\n", NanosecondsPerIteration(delay), round(ClocksPerIteration( delay )));
+	fprintf(fp, " %6.2f ns = %3f cy )\n", NanosecondsPerIteration(delay), round(ClocksPerIteration( delay )));
 	fprintf(fp, "\n");
 	fflush(fp);
 }
@@ -848,13 +848,13 @@ TLBinfo* analyzeTLB(long **result1, long **result2, long shift, long mincachelin
 			time1 = result1[y][x];
 			time2 = result2[y][x];
 			if (draft[1].pagesize[level] && last[a] && (spots == draft[1].entries[level])) {
-				if (((fabs(time1 - last[a]) / (double)time1) < EPSILON1) || (stride >= result1[0][1])) {
+				if (((labs(time1 - last[a]) / (double)time1) < EPSILON1) || (stride >= result1[0][1])) {
 					draft[0].pagesize[level] = stride;
 					draft[1].pagesize[level] = stride;
 				}
 			}
 			if (draft[2].pagesize[level] && last[0] && lastspots && (lastspots == draft[2].entries[level])) {
-				if (((fabs(time1 - last[0]) / (double)time1) < EPSILON1) || (stride >= result1[0][1])) {
+				if (((labs(time1 - last[0]) / (double)time1) < EPSILON1) || (stride >= result1[0][1])) {
 					draft[2].pagesize[level] = stride;
 					draft[3].pagesize[level] = stride;
 					if ( x == xx ) {
@@ -964,8 +964,8 @@ void printCache(cacheInfo *cache, long MHz)
 			}
 		}
 		fprintf(fp, " %3ld bytes ", cache->linesize[l + 1]);
-		fprintf(fp, " %6.2f ns = %3ld cy " , NanosecondsPerIteration(cache->latency2[l + 1] - cache->latency2[l]), round(ClocksPerIteration(cache->latency2[l + 1] - cache->latency2[l])));
-		fprintf(fp, " %6.2f ns = %3ld cy\n", NanosecondsPerIteration(cache->latency1[l + 1] - cache->latency1[l]), round(ClocksPerIteration(cache->latency1[l + 1] - cache->latency1[l])));
+		fprintf(fp, " %6.2f ns = %3f cy " , NanosecondsPerIteration(cache->latency2[l + 1] - cache->latency2[l]), round(ClocksPerIteration(cache->latency2[l + 1] - cache->latency2[l])));
+		fprintf(fp, " %6.2f ns = %3f cy\n", NanosecondsPerIteration(cache->latency1[l + 1] - cache->latency1[l]), round(ClocksPerIteration(cache->latency1[l + 1] - cache->latency1[l])));
 	}
 	fprintf(fp, "\n");
 	fflush(fp);
@@ -994,7 +994,7 @@ void printTLB(TLBinfo *TLB, long MHz)
 				fprintf(fp, "  %3ld KB  ", TLB->pagesize[l + 1] / 1024);
 			}
 		}
-		fprintf(fp, " %6.2f ns = %3ld cy ", NanosecondsPerIteration(TLB->latency2[l + 1] - TLB->latency2[l]), round(ClocksPerIteration(TLB->latency2[l + 1] - TLB->latency2[l])));
+		fprintf(fp, " %6.2f ns = %3.0f cy ", NanosecondsPerIteration(TLB->latency2[l + 1] - TLB->latency2[l]), round(ClocksPerIteration(TLB->latency2[l + 1] - TLB->latency2[l])));
 		fprintf(fp, "\n");
 	}
 	fprintf(fp, "\n");
@@ -1040,12 +1040,12 @@ int main(int ac, char **av) {
 	} else if (ac < 3) {
 		ErrXit("usage: '%s <MHz> <size>[k|M|G]", av[0]);
 	} else {
-		MHz = atoi(av[1]);
+		MHz = atol(av[1]);
 		// Why using 25% more memory?
 		maxrange = bytes(av[2]) * 1.25;
 	}
-	fprintf(stdout,"\nMemory to be used: %d", maxrange);
-	fprintf(stdout,"\nCPU frequency: %d", MHz);
+	fprintf(stdout,"\nMemory to be used: %ld", maxrange);
+	fprintf(stdout,"\nCPU frequency: %ld", MHz);
 	fprintf(stdout,"\n");
 
 	/* Allocating memory for our test array */
